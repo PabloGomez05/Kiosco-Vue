@@ -47,10 +47,7 @@ npm run dev            # http://localhost:5173
 - **Especificación OpenAPI 3.0.3 (Swagger):** errores uniformes, validaciones, paginación e idempotencia:  
   👉 [docs/openapi.yaml](./docs/openapi.yaml)
 
-## 📜 Licencia
-
-Distribuido bajo licencia **MIT**.
 
 ## 🙋‍♂️ Autor
 
-**Pablo** · Docente: **José Olivera**
+**Pablo Gomez**
