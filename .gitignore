@@ -13,10 +13,11 @@ dist
 dist-ssr
 *.local
 
-# Variables de entorno (se versiona solo .env.example)
+# Variables de entorno y estado local de pruebas
 .env
 .env.*
 !.env.example
+server/data/kiosk_state.json
 
 # Archivos temporales de Office / Word y Python
 ~$*

@@ -1,10 +1,12 @@
 {
   "name": "Kiosco-Vue",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.js",
+    "test:hito": "node server/tests/demo_hito_06_11.test.js",
     "build": "vite build",
     "preview": "vite preview"
   },
