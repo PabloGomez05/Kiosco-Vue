@@ -3,43 +3,63 @@
     <table class="tabla-productos">
       <thead>
         <tr>
-          <th>Nombre</th>
+          <th>Producto</th>
           <th>Categoría</th>
-          <th>Precio</th>
-          <th>Stock</th>
+          <th>Precio Venta</th>
+          <th>Stock Actual</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="producto in productos"
-          :key="producto.id"
-          :class="{ 'stock-bajo': producto.stock < 5 }"
+          :key="producto.id_producto || producto.id"
+          :class="{ 'stock-bajo': esStockBajo(producto) }"
         >
-          <td class="td-nombre">{{ producto.nombre }}</td>
+          <td class="td-nombre">
+            <div>{{ producto.nombre }}</div>
+            <small v-if="producto.codigo" class="codigo-prod">Cód: {{ producto.codigo }}</small>
+          </td>
           <td>
-            <span class="badge" :class="'badge-' + producto.categoria.toLowerCase()">
+            <span class="badge" :class="'badge-' + (producto.categoria || 'varios').toLowerCase()">
               {{ producto.categoria }}
             </span>
           </td>
-          <td class="td-precio">${{ producto.precio.toLocaleString('es-AR') }}</td>
+          <td class="td-precio">
+            ${{ Number(producto.precio_venta ?? producto.precio).toLocaleString('es-AR') }}
+          </td>
           <td class="td-stock">
-            <span v-if="producto.stock < 5" class="stock-alerta">⚠️</span>
-            {{ producto.stock }} uds.
+            <span v-if="esStockBajo(producto)" class="stock-alerta" title="Stock en o por debajo del mínimo">⚠️</span>
+            <strong>{{ producto.stock_actual ?? producto.stock }}</strong> uds.
+            <small class="stock-min-label">(mín: {{ producto.stock_minimo ?? 5 }})</small>
           </td>
           <td class="td-acciones">
-            <button class="btn btn-editar" @click="emit('editar', producto.id)">
-              ✏️ Editar
+            <button
+              class="btn btn-carrito"
+              :disabled="(producto.stock_actual ?? producto.stock) <= 0"
+              @click="emit('agregar-carrito', producto)"
+            >
+              🛒 + Carrito
             </button>
-            <button class="btn btn-eliminar" @click="emit('eliminar', producto.id)">
-              🗑️ Eliminar
+            <button
+              class="btn btn-editar"
+              @click="emit('editar', producto.id_producto || producto.id)"
+            >
+              ✏️
+            </button>
+            <button
+              class="btn btn-eliminar"
+              title="Baja lógica (activo = false)"
+              @click="emit('eliminar', producto.id_producto || producto.id)"
+            >
+              🗑️
             </button>
           </td>
         </tr>
 
         <tr v-if="productos.length === 0">
           <td colspan="5" class="td-vacio">
-            No se encontraron productos
+            No se encontraron productos activos para el filtro seleccionado
           </td>
         </tr>
       </tbody>
@@ -55,5 +75,11 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['editar', 'eliminar'])
+const emit = defineEmits(['agregar-carrito', 'editar', 'eliminar'])
+
+function esStockBajo(p) {
+  const actual = p.stock_actual ?? p.stock ?? 0
+  const minimo = p.stock_minimo ?? 5
+  return actual <= minimo
+}
 </script>

@@ -526,3 +526,462 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ============================================
+   ESTILOS ADICIONALES — Punto de Venta (POS),
+   Concurrencia, RBAC y Auditoría (Hito 06/11)
+   ============================================ */
+
+.navbar {
+  justify-content: space-between;
+  height: auto;
+  min-height: 64px;
+  padding: 10px 28px;
+  flex-wrap: wrap;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.badge-caja {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.caja-abierta {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.caja-cerrada {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.rol-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.rol-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.btn-rol {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-rol.activo {
+  background: var(--accent);
+  color: #fff;
+}
+
+.demo-bar {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.demo-bar-title {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.demo-bar-title span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.demo-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-demo {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+.btn-demo:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.btn-reset {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--warning);
+}
+
+.feedback-banner {
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+.banner-exito {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.banner-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.btn-cerrar-banner {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.banner-json {
+  margin-top: 8px;
+  padding: 10px;
+  background: rgba(15, 17, 23, 0.75);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  overflow-x: auto;
+  max-height: 190px;
+}
+
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.modo-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-tab {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-tab.activo {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.codigo-prod {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.stock-min-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.btn-carrito {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  font-weight: 600;
+}
+
+.btn-carrito:hover:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+}
+
+.btn-carrito:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Carrito POS */
+.idempotency-box {
+  background: var(--bg-primary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.idemp-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.idemp-code {
+  font-size: 11.5px;
+  color: var(--accent-hover);
+  word-break: break-all;
+}
+
+.carrito-vacio {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 26px 12px;
+  font-size: 13.5px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+.carrito-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.carrito-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.item-excede-stock {
+  border-color: var(--danger);
+  background: var(--danger-light);
+}
+
+.item-nombre {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.item-alerta-stock {
+  font-size: 11.5px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.item-controles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-qty {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.input-qty {
+  width: 46px;
+  text-align: center;
+  padding: 4px !important;
+  font-size: 13px !important;
+}
+
+.item-subtotal {
+  min-width: 72px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--success);
+  font-size: 13.5px;
+}
+
+.btn-quitar {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-quitar:hover {
+  color: var(--danger);
+}
+
+.pagos-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pagos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.toggle-mixto {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+.pago-mixto-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.carrito-total-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+}
+
+.total-monto {
+  font-size: 20px;
+  color: var(--success);
+}
+
+.btn-confirmar-venta {
+  background: var(--success);
+  color: #fff;
+  font-weight: 700;
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  flex: 1;
+}
+
+.btn-confirmar-venta:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-confirmar-venta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Tablas de Auditoría */
+.auditoria-grid {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+}
+
+.auditoria-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+
+.auditoria-header h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.tabla-compacta th,
+.tabla-compacta td {
+  padding: 10px 14px;
+  font-size: 12.5px;
+}
+
+.badge-pago {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+.badge-mov {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mov-ingreso {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.mov-venta {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
