@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presentación | CRUD Kiosco en Vue.js</title>
+<style>
+/* ============================================================
+   CSS — VARIABLES Y RESET (paleta inspirada en el verde de Vue)
+   ============================================================ */
+:root{
+  --verde-vue: #42b883;
+  --verde-oscuro: #2f9e6b;
+  --azul-vue: #35495e;
+  --azul-oscuro: #223140;
+  --ambar: #c9852e;
+  --gris-oscuro: #2c3e50;
+  --gris-medio: #6b7785;
+  --gris-claro: #eef4f1;
+  --blanco: #ffffff;
+  --exito: #2f9e6b;
+  --alerta: #c9852e;
+  --error: #c94a4a;
+  --sombra: 0 4px 20px rgba(53,73,94,0.12);
+  --sombra-hover: 0 8px 30px rgba(53,73,94,0.20);
+  --radio: 14px;
+  --fuente: 'Inter','Segoe UI',Roboto,system-ui,-apple-system,sans-serif;
+}
+
+*{ box-sizing:border-box; }
+html,body{
+  margin:0; padding:0; height:100%;
+  font-family: var(--fuente);
+  background: linear-gradient(160deg,#f2f7f5 0%, #e6f0ec 100%);
+  color: var(--gris-oscuro);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ============================================================
+   LAYOUT PRINCIPAL
+   ============================================================ */
+.app-shell{ display:flex; min-height:100vh; }
+
+.sidebar{
+  width:270px; min-width:270px;
+  background: var(--azul-oscuro); color:#dbe9e1;
+  padding:24px 18px; position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.sidebar h2{
+  font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase;
+  color:#8fa89c; margin:0 0 16px 6px;
+}
+.sidebar .brand{ display:flex; align-items:center; gap:10px; margin-bottom:28px; padding:0 6px;}
+.sidebar .brand .dot{ width:14px;height:14px;border-radius:50%; background: linear-gradient(135deg, var(--verde-vue), var(--ambar));}
+.sidebar .brand span{ font-weight:700; font-size:0.95rem; color:var(--blanco);}
+.nav-item{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; cursor:pointer;
+  font-size:0.82rem; margin-bottom:3px; color:#c3d7cd;
+  transition: background .2s, color .2s, transform .15s; border-left:3px solid transparent;
+}
+.nav-item:hover{ background:rgba(255,255,255,0.06); transform:translateX(2px);}
+.nav-item.active{ background:rgba(66,184,131,0.18); color:var(--blanco); font-weight:600; border-left:3px solid var(--verde-vue);}
+.nav-item .num{
+  font-size:0.68rem; width:19px; height:19px; border-radius:50%;
+  background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+
+.main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; padding:14px 30px;
+  background:rgba(255,255,255,0.75); backdrop-filter: blur(6px);
+  border-bottom:1px solid #dce8e2; position:sticky; top:0; z-index:20;
+}
+.topbar .titulo-actividad{ font-weight:700; color:var(--azul-vue); font-size:0.92rem;}
+.progreso-wrap{ display:flex; align-items:center; gap:12px; }
+.progreso-texto{ font-size:0.8rem; color:var(--gris-medio); font-weight:600; min-width:70px;}
+.barra-progreso-global{ width:180px; height:8px; background:#d8e6e0; border-radius:6px; overflow:hidden;}
+.barra-progreso-global .relleno{
+  height:100%; background:linear-gradient(90deg,var(--verde-vue),var(--azul-vue));
+  border-radius:6px; transition:width .4s ease; width:0%;
+}
+
+.slide-viewport{ flex:1; display:flex; align-items:flex-start; justify-content:center; padding:36px 30px 20px; overflow-y:auto; }
+.slide{
+  width:100%; max-width:940px; background:var(--blanco); border-radius:20px;
+  box-shadow:var(--sombra); padding:44px 50px; display:none; animation: fadeSlide .5s ease;
+}
+.slide.activa{ display:block; }
+@keyframes fadeSlide{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:translateY(0);} }
+
+.reveal{ opacity:0; transform:translateY(10px); animation: revealUp .5s ease forwards; }
+@keyframes revealUp{ to{ opacity:1; transform:translateY(0);} }
+
+.footer-nav{ display:flex; align-items:center; justify-content:space-between; padding:16px 30px 26px; }
+.btn-nav{
+  display:flex; align-items:center; gap:8px; padding:11px 22px; border-radius:10px; border:none;
+  background:var(--azul-vue); color:#fff; font-weight:600; font-size:0.9rem; cursor:pointer;
+  transition: background .2s, transform .15s, box-shadow .2s; box-shadow:0 3px 10px rgba(53,73,94,0.25);
+}
+.btn-nav:hover{ background:var(--verde-oscuro); transform:translateY(-1px); box-shadow:var(--sombra-hover);}
+.btn-nav:disabled{ opacity:0.35; cursor:not-allowed; transform:none; box-shadow:none;}
+.btn-nav.secundario{ background:var(--blanco); color:var(--azul-vue); border:1.5px solid #cfe0d8; box-shadow:none;}
+.btn-nav.secundario:hover{ background:var(--gris-claro); }
+.slide-indicador{ font-size:0.85rem; color:var(--gris-medio); font-weight:600;}
+
+/* ============================================================
+   TIPOGRAFÍA GENERAL
+   ============================================================ */
+.eyebrow{ text-transform:uppercase; letter-spacing:1.5px; font-size:0.72rem; font-weight:700; color:var(--ambar); margin-bottom:8px;}
+h1.titulo-slide{ font-size:1.75rem; color:var(--azul-vue); margin:0 0 6px; line-height:1.25;}
+h2.subtitulo-slide{ font-size:1.02rem; font-weight:500; color:var(--gris-medio); margin:0 0 24px;}
+h3.seccion{ font-size:1.1rem; color:var(--verde-oscuro); margin:26px 0 12px; display:flex; align-items:center; gap:8px;}
+p{ line-height:1.7; font-size:0.95rem; color:#3c4a5c;}
+code{ background:#eaf4ef; color:var(--azul-vue); padding:2px 6px; border-radius:5px; font-size:0.85em; }
+ul.lista-vinetas{ padding-left:0; list-style:none; margin:10px 0;}
+ul.lista-vinetas li{ position:relative; padding:6px 0 6px 26px; font-size:0.93rem; line-height:1.6;}
+ul.lista-vinetas li::before{ content:"▹"; position:absolute; left:0; color:var(--verde-vue); font-weight:700;}
+ol.lista-numerada{ padding-left:22px; }
+ol.lista-numerada li{ padding:5px 0; font-size:0.93rem; line-height:1.6;}
+
+/* Portada */
+.portada{ text-align:center; padding:36px 20px; }
+.portada .logo-simbolico{
+  width:86px; height:86px; margin:0 auto 22px; border-radius:22px;
+  background:linear-gradient(135deg,var(--azul-vue),var(--verde-vue));
+  display:flex; align-items:center; justify-content:center; font-size:2.2rem; color:#fff; box-shadow:var(--sombra);
+}
+.portada .asignatura{
+  display:inline-block; margin-top:22px; padding:8px 18px; border-radius:30px;
+  background:var(--gris-claro); color:var(--azul-vue); font-weight:600; font-size:0.85rem; letter-spacing:0.4px;
+}
+.portada h1{ font-size:2.1rem; color:var(--azul-vue); margin:6px 0 10px;}
+.portada h3.sub{ font-weight:400; color:var(--gris-medio); font-size:1.05rem; margin-bottom:18px;}
+.portada .badges{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px;}
+.portada .badge{
+  background:var(--azul-vue); color:#fff; font-size:0.78rem; font-weight:600;
+  padding:6px 14px; border-radius:20px;
+}
+
+/* Tarjetas */
+.grid-tarjetas{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin:18px 0;}
+.tarjeta{ background:var(--gris-claro); border-radius:var(--radio); padding:18px 20px; border:1px solid #dbe9e1; transition:transform .2s, box-shadow .2s;}
+.tarjeta:hover{ transform:translateY(-4px); box-shadow:var(--sombra-hover); background:#fff;}
+.tarjeta .icono{ font-size:1.5rem; margin-bottom:8px; display:block;}
+.tarjeta h4{ margin:0 0 6px; color:var(--azul-vue); font-size:0.95rem;}
+.tarjeta p{ font-size:0.84rem; margin:0; color:var(--gris-medio);}
+
+/* Bloques destacados */
+.bloque{ border-radius:12px; padding:16px 20px; margin:16px 0; font-size:0.9rem; line-height:1.6; border-left:5px solid;}
+.bloque.definicion{ background:#eaf6f0; border-color:var(--verde-vue); }
+.bloque.tip{ background:#eefaf3; border-color:var(--exito);}
+.bloque.alerta{ background:#fdf3e6; border-color:var(--alerta);}
+.bloque.error{ background:#fdecec; border-color:var(--error);}
+.bloque .etiqueta{ font-weight:700; display:block; margin-bottom:4px; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px;}
+.bloque.definicion .etiqueta{ color:var(--verde-oscuro);}
+.bloque.tip .etiqueta{ color:var(--exito);}
+.bloque.alerta .etiqueta{ color:var(--alerta);}
+.bloque.error .etiqueta{ color:var(--error);}
+
+/* Árbol de carpetas / terminal */
+.arbol-carpetas{
+  background:#151b1a; color:#dbf3e6; border-radius:12px; padding:18px 22px; margin:16px 0;
+  font-family:'Courier New',monospace; font-size:0.83rem; line-height:1.75; box-shadow:var(--sombra); overflow-x:auto;
+}
+.arbol-carpetas .carpeta{ color:#7fd8b0; font-weight:700; }
+.arbol-carpetas .archivo{ color:#a6e6c8; }
+.arbol-carpetas .comentario{ color:#6b7785; font-style:italic; }
+
+/* Bloque de código */
+.codigo-wrap{ background:#1a2420; border-radius:12px; margin:14px 0; overflow:hidden; box-shadow:var(--sombra);}
+.codigo-header{
+  background:#101614; color:#8fc4a8; font-size:0.74rem; padding:8px 16px;
+  display:flex; align-items:center; justify-content:space-between; font-family:'Courier New',monospace; letter-spacing:0.4px;
+}
+.codigo-wrap pre{ margin:0; padding:16px 18px; overflow-x:auto; color:#dbf3e6; font-size:0.8rem; line-height:1.55; font-family:'Courier New',monospace;}
+.codigo-wrap .tk{ color:#7fc8ff; }
+.codigo-wrap .tv{ color:#f2a65a; }
+.codigo-wrap .ts{ color:#96d38c; }
+.codigo-wrap .tc{ color:#6b7785; font-style:italic;}
+.codigo-wrap .ttag{ color:#e08fd0; }
+
+/* Acordeón */
+.acordeon{ margin:16px 0; border-radius:12px; overflow:hidden; border:1px solid #dbe9e1;}
+.acordeon-item{ border-bottom:1px solid #dbe9e1;}
+.acordeon-item:last-child{ border-bottom:none;}
+.acordeon-cabecera{
+  padding:14px 18px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+  background:#fafcfb; font-weight:600; font-size:0.9rem; color:var(--azul-vue); transition:background .2s;
+}
+.acordeon-cabecera:hover{ background:var(--gris-claro); }
+.acordeon-cabecera .flecha{ transition:transform .25s; color:var(--verde-vue);}
+.acordeon-item.abierto .flecha{ transform:rotate(90deg);}
+.acordeon-cuerpo{ max-height:0; overflow:hidden; transition:max-height .35s ease; padding:0 18px; background:#fff;}
+.acordeon-item.abierto .acordeon-cuerpo{ padding:14px 18px; }
+
+/* Caja expandible */
+.expandible{ border:1.5px dashed var(--verde-vue); border-radius:12px; padding:14px 18px; margin:14px 0; background:#f5fbf8;}
+.expandible-btn{ background:none; border:none; color:var(--azul-vue); font-weight:700; cursor:pointer; font-size:0.87rem; display:flex; align-items:center; gap:6px; padding:0;}
+.expandible-contenido{ max-height:0; overflow:hidden; transition:max-height .35s ease; margin-top:0;}
+.expandible.abierto .expandible-contenido{ max-height:700px; margin-top:12px;}
+
+/* Tabla resumen */
+table.tabla-resumen{ width:100%; border-collapse:collapse; margin:16px 0; font-size:0.85rem;}
+table.tabla-resumen th{ background:var(--azul-vue); color:#fff; text-align:left; padding:10px 14px;}
+table.tabla-resumen td{ padding:10px 14px; border-bottom:1px solid #e6f0eb;}
+table.tabla-resumen tr:nth-child(even){ background:#f6faf8;}
+
+/* Diagrama de flujo (pipeline) */
+.pipeline{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:20px 0; justify-content:center;}
+.pipeline-paso{
+  background:var(--gris-claro); border:1.5px solid var(--verde-vue); border-radius:10px; padding:10px 14px;
+  font-size:0.82rem; font-weight:600; color:var(--azul-vue); text-align:center; min-width:110px;
+}
+.pipeline-flecha{ color:var(--verde-vue); font-size:1.2rem; font-weight:700;}
+
+/* Diagrama props/emits */
+.flujo-datos{ display:flex; flex-direction:column; align-items:center; gap:26px; margin:26px 0; }
+.flujo-fila{ display:flex; align-items:center; gap:18px; justify-content:center; flex-wrap:wrap; }
+.flujo-caja{
+  background:#fff; border:2px solid var(--azul-vue); border-radius:12px; padding:14px 22px;
+  font-weight:700; font-size:0.9rem; color:var(--azul-vue); box-shadow:var(--sombra); min-width:150px; text-align:center;
+}
+.flujo-caja.hijo{ border-color:var(--verde-vue); color:var(--verde-oscuro); }
+.flujo-flecha-vert{ display:flex; flex-direction:column; align-items:center; font-size:0.72rem; font-weight:700; color:var(--gris-medio); }
+.flujo-flecha-vert .linea{ width:2px; height:26px; background:#c9dcd2; margin:2px 0; }
+.flujo-flecha-vert.props .linea{ background:var(--azul-vue); }
+.flujo-flecha-vert.props{ color:var(--azul-vue); }
+.flujo-flecha-vert.emit .linea{ background:var(--verde-vue); }
+.flujo-flecha-vert.emit{ color:var(--verde-oscuro); }
+
+/* Traza de ejecución */
+.traza{ margin:16px 0; }
+.traza-paso{ display:flex; gap:14px; align-items:flex-start; margin-bottom:10px; }
+.traza-num{ background:var(--verde-vue); color:#fff; font-weight:700; font-size:0.8rem; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.traza-texto{ font-size:0.9rem; line-height:1.6; padding-top:2px; }
+
+/* Responsivo */
+@media (max-width: 900px){ .sidebar{ display:none; } .slide{ padding:28px 22px; } }
+@media (max-width: 560px){
+  .topbar{ padding:12px 16px; } .footer-nav{ padding:14px 16px 20px; }
+  h1.titulo-slide{ font-size:1.4rem; } .progreso-wrap .barra-progreso-global{ width:100px; }
+  .pipeline{ flex-direction:column; } .pipeline-flecha{ transform:rotate(90deg);}
+  .flujo-fila{ flex-direction:column; }
+}
+
+button:focus-visible, .nav-item:focus-visible{ outline:3px solid var(--verde-vue); outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <nav class="sidebar" aria-label="Navegación de secciones">
+    <div class="brand"><span class="dot"></span><span>Clase Interactiva</span></div>
+    <h2>Secciones</h2>
+    <div id="menu-secciones"></div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="titulo-actividad">CRUD Kiosco en Vue.js — Trabajo Práctico</div>
+      <div class="progreso-wrap">
+        <span class="progreso-texto" id="texto-progreso">1 / X</span>
+        <div class="barra-progreso-global"><div class="relleno" id="barra-global"></div></div>
+      </div>
+    </header>
+
+    <div class="slide-viewport" id="viewport">
+      <main style="width:100%; display:flex; justify-content:center;">
+
+      <!-- ===================== SLIDE 1: PORTADA ===================== -->
+      <section class="slide activa" data-titulo="Portada">
+        <div class="portada">
+          <div class="logo-simbolico reveal">🏪</div>
+          <div class="asignatura reveal" style="animation-delay:.05s">Desarrollo Frontend · Vue.js 3</div>
+          <h1 class="reveal" style="animation-delay:.1s">Gestión de Inventario (Mi Kiosco)</h1>
+          <h3 class="sub reveal" style="animation-delay:.15s">Composition API · <code>&lt;script setup&gt;</code> · Props y Eventos · Filtros Dinámicos</h3>
+          <div class="badges reveal" style="animation-delay:.2s">
+            <span class="badge">Vue 3</span>
+            <span class="badge">Vite</span>
+            <span class="badge">Composition API</span>
+            <span class="badge">Componentes SFC</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 2: QUÉ VAMOS A CONSTRUIR ===================== -->
+      <section class="slide" data-titulo="Qué construimos">
+        <div class="eyebrow reveal">Presentación del proyecto</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">¿Qué desarrollamos?</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Una SPA de gestión de stock con las cuatro operaciones CRUD</h2>
+
+        <div class="bloque definicion reveal" style="animation-delay:.15s">
+          <span class="etiqueta">Objetivo del proyecto</span>
+          Construimos un sistema visualmente atractivo y moderno para administrar el <strong>inventario de un kiosco</strong>. Permite crear, leer, actualizar y eliminar productos. Para concentrarnos en la arquitectura Vue, los datos viven <strong>en memoria</strong>: al recargar la página vuelven a su estado inicial, dándonos total control sobre el flujo de datos.
+        </div>
+
+        <div class="grid-tarjetas reveal" style="animation-delay:.2s">
+          <div class="tarjeta"><span class="icono">➕</span><h4>Create</h4><p>Añadir nuevos productos (nombre, categoría, precio, stock).</p></div>
+          <div class="tarjeta"><span class="icono">📋</span><h4>Read</h4><p>Mostrar la lista de productos y filtrar por nombre en tiempo real.</p></div>
+          <div class="tarjeta"><span class="icono">✏️</span><h4>Update</h4><p>Editar la información (como el precio o stock) de un producto existente.</p></div>
+          <div class="tarjeta"><span class="icono">🗑️</span><h4>Delete</h4><p>Eliminar un producto del inventario con su respectiva confirmación.</p></div>
+        </div>
+
+        <h3 class="seccion reveal" style="animation-delay:.25s">🧩 Piezas de nuestra Arquitectura</h3>
+        <ul class="lista-vinetas reveal" style="animation-delay:.3s">
+          <li><code>App.vue</code> — El componente raíz, dueño absoluto del estado global (lista de productos).</li>
+          <li><code>ProductoForm.vue</code> — Formulario reutilizable que sirve tanto para añadir como para editar.</li>
+          <li><code>ProductoLista.vue</code> — La tabla visual, con lógica condicional para alertas de bajo stock.</li>
+        </ul>
+      </section>
+
+      <!-- ===================== SLIDE 3: PREPARACIÓN DEL ENTORNO ===================== -->
+      <section class="slide" data-titulo="Preparar el entorno">
+        <div class="eyebrow reveal">Puesta en marcha</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">Preparación del entorno y creación del proyecto</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Node.js + Vite: Velocidad y eficiencia de desarrollo</h2>
+
+        <h3 class="seccion reveal" style="animation-delay:.15s">1️⃣ Dependencias Core</h3>
+        <p class="reveal" style="animation-delay:.2s">Utilizamos Node.js como motor principal, y nos decantamos por <strong>Vite</strong> en lugar del Vue CLI clásico debido a su arranque instantáneo y HMR ultrarrápido, ideal para componentes SFC.</p>
+
+        <h3 class="seccion reveal" style="animation-delay:.25s">2️⃣ Instanciación</h3>
+        <p class="reveal" style="animation-delay:.3s">El proyecto se generó limpio y sin dependencias pesadas como Router o Vuex/Pinia, ya que centralizamos el estado localmente.</p>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.35s">
+          <div class="codigo-header"><span>terminal</span><span>bash</span></div>
+          <pre>npm create vite@latest mi-proyecto-vue -- --template vue
+
+cd mi-proyecto-vue
+npm install
+npm run dev</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 4: ESTRUCTURA DEL PROYECTO ===================== -->
+      <section class="slide" data-titulo="Estructura y App.vue base">
+        <div class="eyebrow reveal">Arquitectura Base</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">Estructura del proyecto y primeros pasos</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Mantenemos el esqueleto limpio y robusto</h2>
+
+        <div class="arbol-carpetas reveal" style="animation-delay:.15s">
+mi-proyecto-vue/<br>
+├── <span class="carpeta">src/</span><br>
+│   ├── <span class="archivo">style.css</span> <span class="comentario">← sistema de diseño oscuro (Grid Layout, Flexbox, variables CSS)</span><br>
+│   ├── <span class="archivo">App.vue</span> <span class="comentario">← componente central (alberga el array y los computed properties)</span><br>
+│   └── <span class="carpeta">components/</span><br>
+│       ├── <span class="archivo">ProductoForm.vue</span> <span class="comentario">← UI para crear y modificar inventario</span><br>
+│       └── <span class="archivo">ProductoLista.vue</span> <span class="comentario">← UI de visualización y filtrado de grilla</span>
+        </div>
+
+        <h3 class="seccion reveal" style="animation-delay:.2s">📝 App.vue — esqueleto inicial</h3>
+        <p class="reveal" style="animation-delay:.25s">Haciendo uso de <code>&lt;script setup&gt;</code>, el código repetitivo se reduce drásticamente. Solo importamos y usamos.</p>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.3s">
+          <div class="codigo-header"><span>App.vue (esqueleto)</span><span>vue</span></div>
+          <pre>&lt;<span class="ttag">template</span>&gt;
+  &lt;<span class="ttag">div</span> <span class="tv">class</span>=<span class="ts">"layout-principal"</span>&gt;
+    &lt;<span class="ttag">ProductoForm</span> /&gt;
+    &lt;<span class="ttag">ProductoLista</span> /&gt;
+  &lt;/<span class="ttag">div</span>&gt;
+&lt;/<span class="ttag">template</span>&gt;
+
+&lt;<span class="ttag">script setup</span>&gt;
+<span class="tk">import</span> ProductoForm <span class="tk">from</span> <span class="ts">'./components/ProductoForm.vue'</span>
+<span class="tk">import</span> ProductoLista <span class="tk">from</span> <span class="ts">'./components/ProductoLista.vue'</span>
+&lt;/<span class="ttag">script</span>&gt;</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 5: ProductoLista.vue ===================== -->
+      <section class="slide" data-titulo="ProductoLista.vue">
+        <div class="eyebrow reveal">Construyendo Componentes</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">ProductoLista.vue — tabla visual y reactiva</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s"><code>props</code> para recibir datos, <code>emit</code> para reaccionar</h2>
+
+        <div class="bloque definicion reveal" style="animation-delay:.15s">
+          <span class="etiqueta">Rol del componente: "Componente Tonto (Dumb Component)"</span>
+          <code>ProductoLista</code> no guarda estado, ni procesa borrados internamente. Su único trabajo es <strong>renderizar</strong> el array de productos que <code>App.vue</code> le manda vía <code>props</code>, e incorporar reglas visuales (ej. insignias de stock bajo). Si el usuario clickea un botón, este componente se limita a <strong>emitir</strong> un evento.
+        </div>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.2s">
+          <div class="codigo-header"><span>ProductoLista.vue (fragmento)</span><span>vue</span></div>
+          <pre>&lt;<span class="ttag">template</span>&gt;
+  &lt;<span class="ttag">tr</span> <span class="tv">v-for</span>=<span class="ts">"producto in productos"</span> <span class="tv">:key</span>=<span class="ts">"producto.id"</span>&gt;
+    &lt;<span class="ttag">td</span>&gt;{{ producto.nombre }}&lt;/<span class="ttag">td</span>&gt;
+    &lt;<span class="ttag">td</span>&gt;
+      &lt;<span class="ttag">span</span> <span class="tv">v-if</span>=<span class="ts">"producto.stock < 5"</span>&gt;⚠️&lt;/<span class="ttag">span</span>&gt; 
+      {{ producto.stock }} uds.
+    &lt;/<span class="ttag">td</span>&gt;
+    &lt;<span class="ttag">td</span>&gt;
+      &lt;<span class="ttag">button</span> <span class="tv">@click</span>=<span class="ts">"emit('editar', producto.id)"</span>&gt;✏️&lt;/<span class="ttag">button</span>&gt;
+      &lt;<span class="ttag">button</span> <span class="tv">@click</span>=<span class="ts">"emit('eliminar', producto.id)"</span>&gt;🗑️&lt;/<span class="ttag">button</span>&gt;
+    &lt;/<span class="ttag">td</span>&gt;
+  &lt;/<span class="ttag">tr</span>&gt;
+&lt;/<span class="ttag">template</span>&gt;
+
+&lt;<span class="ttag">script setup</span>&gt;
+<span class="tk">defineProps</span>({ productos: { type: <span class="tv">Array</span>, required: <span class="tv">true</span> } })
+
+<span class="tk">const</span> emit = <span class="tk">defineEmits</span>([<span class="ts">'editar'</span>, <span class="ts">'eliminar'</span>])
+&lt;/<span class="ttag">script</span>&gt;</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 6: ProductoForm.vue ===================== -->
+      <section class="slide" data-titulo="ProductoForm.vue">
+        <div class="eyebrow reveal">Construyendo Componentes</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">ProductoForm.vue — creación y edición unificada</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s"><code>v-model.number</code> y <code>watch</code> para transiciones fluidas</h2>
+
+        <div class="bloque definicion reveal" style="animation-delay:.15s">
+          <span class="etiqueta">Doble propósito</span>
+          En vez de tener dos formularios (uno para crear, otro para editar), hacemos uno inteligente. Mediante un <code>watch</code> monitoreamos si <code>App.vue</code> nos inyecta un <code>producto</code>. Si ocurre, los `ref()` se rellenan automáticamente; si no, el formulario se limpia y queda listo para añadir algo nuevo.
+        </div>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.2s">
+          <div class="codigo-header"><span>ProductoForm.vue (fragmento)</span><span>vue</span></div>
+          <pre>&lt;<span class="ttag">script setup</span>&gt;
+<span class="tk">import</span> { ref, watch } <span class="tk">from</span> <span class="ts">'vue'</span>
+
+<span class="tk">const</span> props = <span class="tk">defineProps</span>({ producto: { type: <span class="tv">Object</span>, default: <span class="tv">null</span> } })
+<span class="tk">const</span> emit = <span class="tk">defineEmits</span>([<span class="ts">'guardar'</span>, <span class="ts">'cancelar'</span>])
+
+<span class="tk">const</span> nombre = <span class="tk">ref</span>(<span class="ts">''</span>)
+<span class="tk">const</span> precio = <span class="tk">ref</span>(<span class="tv">null</span>)
+<span class="tk">const</span> stock = <span class="tk">ref</span>(<span class="tv">null</span>)
+
+<span class="tk">watch</span>(() => props.producto, (nuevoProducto) => {
+  <span class="tk">if</span> (nuevoProducto) {
+    nombre.value = nuevoProducto.nombre
+    precio.value = nuevoProducto.precio
+    stock.value = nuevoProducto.stock
+  } <span class="tk">else</span> {
+    limpiarFormulario()
+  }
+}, { immediate: <span class="tv">true</span> })
+
+<span class="tk">function</span> guardar() {
+  emit(<span class="ts">'guardar'</span>, { nombre: nombre.value, precio: precio.value, stock: stock.value })
+}
+&lt;/<span class="ttag">script</span>&gt;</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 7: FLUJO DE DATOS ===================== -->
+      <section class="slide" data-titulo="Flujo de datos">
+        <div class="eyebrow reveal">Arquitectura y Patrones</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">El Patrón "Props abajo, eventos arriba"</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">El flujo de información en Vue.js</h2>
+
+        <div class="flujo-datos reveal" style="animation-delay:.15s">
+          <div class="flujo-caja">App.vue (estado maestro: <code>productos</code>)</div>
+          <div class="flujo-fila">
+            <div class="flujo-flecha-vert props">props (:productos)<div class="linea"></div>↓</div>
+            <div class="flujo-flecha-vert emit">↑<div class="linea"></div>emit (guardar/editar/eliminar)</div>
+          </div>
+          <div class="flujo-fila">
+            <div class="flujo-caja hijo">ProductoLista.vue</div>
+            <div class="flujo-caja hijo">ProductoForm.vue</div>
+          </div>
+        </div>
+
+        <div class="bloque tip reveal" style="animation-delay:.2s">
+          <span class="etiqueta">¿Por qué este patrón?</span>
+          Si <code>ProductoLista</code> modificara el array de inventario por sí solo, el flujo se volvería impredecible. Emitiendo eventos garantizamos que existe un <strong>único punto de verdad</strong> (Single Source of Truth) en <code>App.vue</code>. Esto previene bugs difíciles de rastrear cuando las aplicaciones escalan.
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 8: APP.VUE — ESTADO Y LÓGICA CRUD ===================== -->
+      <section class="slide" data-titulo="App.vue: lógica CRUD">
+        <div class="eyebrow reveal">Integración</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">App.vue — el cerebro del kiosco</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Implementación de los Computed Properties y el Mutador Global</h2>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.15s">
+          <div class="codigo-header"><span>App.vue — &lt;script setup&gt;</span><span>vue</span></div>
+          <pre><span class="tk">import</span> { ref, computed } <span class="tk">from</span> <span class="ts">'vue'</span>
+
+<span class="tk">let</span> siguienteId = 6
+<span class="tk">const</span> productos = <span class="tk">ref</span>([
+  { id: 1, nombre: <span class="ts">'Coca-Cola 500ml'</span>, categoria: <span class="ts">'Bebidas'</span>, precio: 1500, stock: 24 }
+])
+<span class="tk">const</span> productoEditando = <span class="tk">ref</span>(<span class="tv">null</span>)
+<span class="tk">const</span> busqueda = <span class="tk">ref</span>(<span class="ts">''</span>)
+
+<span class="tk">const</span> productosFiltrados = <span class="tk">computed</span>(() => {
+  <span class="tk">const</span> termino = busqueda.value.toLowerCase()
+  <span class="tk">return</span> productos.value.filter(p => p.nombre.toLowerCase().includes(termino))
+})
+
+<span class="tk">function</span> guardarProducto(datosProducto) {
+  <span class="tk">if</span> (productoEditando.value) {
+    <span class="tk">const</span> indice = productos.value.findIndex(p => p.id === productoEditando.value.id)
+    <span class="tk">if</span> (indice !== -1) productos.value[indice] = { ...datosProducto, id: productoEditando.value.id }
+    productoEditando.value = <span class="tv">null</span>
+  } <span class="tk">else</span> {
+    productos.value.push({ ...datosProducto, id: siguienteId++ })
+  }
+}
+
+<span class="tk">function</span> eliminarProducto(id) {
+  productos.value = productos.value.filter(p => p.id !== id)
+}</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 9: TEMPLATE FINAL Y PRUEBA ===================== -->
+      <section class="slide" data-titulo="Template final">
+        <div class="eyebrow reveal">Integración</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">Conectando todo en el <code>&lt;template&gt;</code></h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Uniendo estado reactivo, componentes hijos y eventos en App.vue</h2>
+
+        <div class="codigo-wrap reveal" style="animation-delay:.15s">
+          <div class="codigo-header"><span>App.vue — &lt;template&gt;</span><span>vue</span></div>
+          <pre>&lt;<span class="ttag">template</span>&gt;
+  &lt;<span class="ttag">main</span> <span class="tv">class</span>=<span class="ts">"contenido"</span>&gt;
+    &lt;<span class="ttag">div</span> <span class="tv">class</span>=<span class="ts">"layout-principal"</span>&gt;
+
+      &lt;<span class="ttag">ProductoForm</span>
+        <span class="tv">:producto</span>=<span class="ts">"productoEditando"</span>
+        <span class="tv">@guardar</span>=<span class="ts">"guardarProducto"</span>
+        <span class="tv">@cancelar</span>=<span class="ts">"cancelarEdicion"</span>
+      /&gt;
+
+      &lt;<span class="ttag">div</span> <span class="tv">class</span>=<span class="ts">"lista-section"</span>&gt;
+        &lt;<span class="ttag">input</span> <span class="tv">v-model</span>=<span class="ts">"busqueda"</span> <span class="tv">placeholder</span>=<span class="ts">"🔍 Buscar producto..."</span> /&gt;
+
+        &lt;<span class="ttag">ProductoLista</span>
+          <span class="tv">:productos</span>=<span class="ts">"productosFiltrados"</span>
+          <span class="tv">@editar</span>=<span class="ts">"seleccionarParaEditar"</span>
+          <span class="tv">@eliminar</span>=<span class="ts">"eliminarProducto"</span>
+        /&gt;
+      &lt;/<span class="ttag">div</span>&gt;
+
+    &lt;/<span class="ttag">div</span>&gt;
+  &lt;/<span class="ttag">main</span>&gt;
+&lt;/<span class="ttag">template</span>&gt;</pre>
+        </div>
+      </section>
+
+      <!-- ===================== SLIDE 10: CUADRO DE CONCEPTOS ===================== -->
+      <section class="slide" data-titulo="Conceptos clave">
+        <div class="eyebrow reveal">Repaso General</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">Cuadro de tecnologías y directivas utilizadas</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Mapeo del API de Vue 3 en nuestro proyecto</h2>
+
+        <table class="tabla-resumen reveal" style="animation-delay:.15s">
+          <thead><tr><th>Directiva / API</th><th>Definición Técnica</th><th>Aplicación en Mi Kiosco</th></tr></thead>
+          <tbody>
+            <tr><td><code>ref()</code></td><td>Proxy reactivo para instanciar estado mutable.</td><td>Variables de inputs (<code>nombre</code>), lista de inventario (<code>productos</code>).</td></tr>
+            <tr><td><code>computed()</code></td><td>Propiedad derivada almacenada en caché reactiva.</td><td><code>productosFiltrados</code> (optimiza el buscador sin iterar innecesariamente).</td></tr>
+            <tr><td><code>v-model</code></td><td>Two-way data binding sintáctico sobre v-bind/v-on.</td><td>Sincronización instantánea de los campos del formulario.</td></tr>
+            <tr><td><code>props</code></td><td>Inyección de parámetros inmutables hacia componentes hijos.</td><td>Envío del array a iterar en la tabla de productos.</td></tr>
+            <tr><td><code>emit</code></td><td>Despachador de eventos asíncronos hacia el parent tree.</td><td>Notificación de intenciones de borrado o actualización de registros.</td></tr>
+            <tr><td><code>watch</code></td><td>Listener explícito de efectos secundarios reactivos.</td><td>Re-asignación del formulario en vivo si se selecciona un nuevo producto a editar.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===================== SLIDE 11: CONCLUSIÓN ===================== -->
+      <section class="slide" data-titulo="Conclusión">
+        <div class="eyebrow reveal">Cierre</div>
+        <h1 class="titulo-slide reveal" style="animation-delay:.05s">Hitos Logrados en el TP</h1>
+        <h2 class="subtitulo-slide reveal" style="animation-delay:.1s">Resumen de nuestra entrega final</h2>
+
+        <div class="grid-tarjetas reveal" style="animation-delay:.15s">
+          <div class="tarjeta"><span class="icono">⚡</span><h4>UX Fluida</h4><p>Sin recargas de página y con búsqueda en tiempo real, maximizando la experiencia gracias a Vue.</p></div>
+          <div class="tarjeta"><span class="icono">🛡️</span><h4>Robustez UI</h4><p>Diseño Mobile-First adaptativo, manejando colisiones del CSS Grid inteligentemente.</p></div>
+          <div class="tarjeta"><span class="icono">🧼</span><h4>Separation of Concerns</h4><p>Almacenamiento y lógica centralizadas, con Vistas 100% enfocadas en pintar la data (Componentes Tontos/Inteligentes).</p></div>
+        </div>
+
+        <div class="bloque tip reveal" style="animation-delay:.2s">
+          <span class="etiqueta">Conclusión de Defensa</span>
+          El proyecto demuestra control sobre el framework Vue.js haciendo un uso apropiado de la <strong>Composition API</strong> para abstraer y gestionar un CRUD completo de gestión de stock, priorizando mantenibilidad, velocidad, y un flujo de información predecible (one-way data flow).
+        </div>
+      </section>
+
+      </main>
+    </div>
+
+    <footer class="footer-nav">
+      <button class="btn-nav secundario" id="btn-anterior" onclick="irAnterior()">← Anterior</button>
+      <span class="slide-indicador" id="indicador-slide">Diapositiva 1 de X</span>
+      <button class="btn-nav" id="btn-siguiente" onclick="irSiguiente()">Siguiente →</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   JS — ESTADO DE LA PRESENTACIÓN
+   ============================================================ */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total = slides.length;
+let actual = 0;
+
+const menuContenedor = document.getElementById('menu-secciones');
+slides.forEach((slide, i) => {
+  const item = document.createElement('div');
+  item.className = 'nav-item' + (i === 0 ? ' active' : '');
+  item.setAttribute('role', 'button');
+  item.setAttribute('tabindex', '0');
+  item.innerHTML = `<span class="num">${i+1}</span><span>${slide.dataset.titulo}</span>`;
+  item.addEventListener('click', () => irA(i));
+  item.addEventListener('keydown', (e) => { if(e.key === 'Enter') irA(i); });
+  menuContenedor.appendChild(item);
+});
+const menuItems = Array.from(menuContenedor.children);
+
+function render(){
+  slides.forEach((s, i) => s.classList.toggle('activa', i === actual));
+  menuItems.forEach((m, i) => m.classList.toggle('active', i === actual));
+
+  document.getElementById('texto-progreso').textContent = `${actual+1} / ${total}`;
+  document.getElementById('barra-global').style.width = `${((actual+1)/total)*100}%`;
+  document.getElementById('indicador-slide').textContent = `Diapositiva ${actual+1} de ${total}`;
+
+  document.getElementById('btn-anterior').disabled = actual === 0;
+  document.getElementById('btn-siguiente').textContent = (actual === total - 1) ? 'Finalizar ✓' : 'Siguiente →';
+  document.getElementById('btn-siguiente').disabled = actual === total - 1;
+
+  const activos = slides[actual].querySelectorAll('.reveal');
+  activos.forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+
+  document.getElementById('viewport').scrollTop = 0;
+}
+
+function irSiguiente(){ if (actual < total - 1){ actual++; render(); } }
+function irAnterior(){ if (actual > 0){ actual--; render(); } }
+function irA(indice){ actual = indice; render(); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') irSiguiente();
+  if (e.key === 'ArrowLeft') irAnterior();
+});
+
+/* ============================================================
+   JS — ACORDEONES
+   ============================================================ */
+function toggleAcordeon(cabecera){
+  const item = cabecera.parentElement;
+  const cuerpo = item.querySelector('.acordeon-cuerpo');
+  const abierto = item.classList.contains('abierto');
+
+  const contenedor = item.parentElement;
+  contenedor.querySelectorAll('.acordeon-item').forEach(otro => {
+    otro.classList.remove('abierto');
+    otro.querySelector('.acordeon-cuerpo').style.maxHeight = null;
+  });
+
+  if (!abierto){
+    item.classList.add('abierto');
+    cuerpo.style.maxHeight = cuerpo.scrollHeight + 'px';
+  }
+}
+
+/* ============================================================
+   JS — CAJAS EXPANDIBLES
+   ============================================================ */
+function toggleExpandible(caja){
+  caja.classList.toggle('abierto');
+  const flecha = caja.querySelector('.flecha-exp');
+  flecha.textContent = caja.classList.contains('abierto') ? '▾' : '▸';
+}
+
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+render();
+</script>
+</body>
+</html>

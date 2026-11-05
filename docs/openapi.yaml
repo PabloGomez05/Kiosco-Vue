@@ -1,0 +1,777 @@
+openapi: 3.0.3
+info:
+  title: Sistema de Gestión e Inventario para Kiosco – API REST
+  version: 2.1.0
+  description: |
+    Especificación OpenAPI 3.0 de la API REST del **Sistema de Gestión e Inventario para Kiosco**
+    (Materia: Programación II · Docente: José Olivera · Autor: Pablo).
+
+    ### Características principales de diseño:
+    - **Autenticación y Permisos (RBAC):** JWT Bearer (`expiresIn: 1h`) validado en servidor por los middlewares `autenticarToken` y `autorizarRol`.
+    - **Transaccionalidad ACID y Concurrencia:** `POST /api/ventas` ejecuta `START TRANSACTION`, bloquea las filas de productos con `SELECT ... FOR UPDATE` (ordenados por `id_producto`), verifica stock, inserta `ventas`, `detalle_ventas`, `pagos_venta` y `movimientos_stock`, y confirma con `COMMIT` (o `ROLLBACK` ante cualquier error).
+    - **Idempotencia en Ventas:** `POST /api/ventas` exige el header `Idempotency-Key` (UUID v4). Si un reintento de red o doble clic envía la misma clave, el servidor devuelve la venta ya registrada sin volver a descontar stock.
+    - **Contrato Uniforme de Errores:** Todas las respuestas `4xx` y `5xx` respetan el esquema `ErrorResponse`.
+    - **Paginación Estandarizada:** Los listados aceptan `page` y `limit` y devuelven metadatos en `meta`.
+  contact:
+    name: Pablo (Proyecto Integrador Individual)
+
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor local de desarrollo (Node.js + Express)
+
+tags:
+  - name: Auth
+    description: Inicio de sesión y perfil del usuario autenticado
+  - name: Productos
+    description: Catálogo de productos, precios vigentes y consulta de stock
+  - name: Stock
+    description: Reposición de mercadería, ajustes y bitácora de movimientos
+  - name: Ventas
+    description: Punto de venta transaccional (POS), pagos mixtos e historial
+  - name: Caja
+    description: Estado de caja diaria y arqueo inmutable por vendedor
+  - name: Reportes
+    description: Métricas por período y exportación CSV (Rol Admin)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Autenticar usuario y emitir token JWT (1h)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usuario, password]
+              properties:
+                usuario:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  example: vendedor
+                password:
+                  type: string
+                  minLength: 6
+                  maxLength: 100
+                  example: Kiosco2026!
+      responses:
+        '200':
+          description: Credenciales válidas. Retorna token JWT y datos del usuario.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  expires_in:
+                    type: integer
+                    example: 3600
+                  usuario:
+                    $ref: '#/components/schemas/UsuarioResumen'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /productos:
+    get:
+      tags: [Productos]
+      summary: Listar productos con filtros y paginación (Roles: vendedor, admin)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          description: Búsqueda parcial por nombre o código
+          schema:
+            type: string
+        - name: id_categoria
+          in: query
+          description: Filtrar por categoría
+          schema:
+            type: integer
+            minimum: 1
+        - name: bajo_stock
+          in: query
+          description: Si es true, filtra productos con stock_actual <= stock_minimo
+          schema:
+            type: boolean
+        - name: incluir_inactivos
+          in: query
+          description: Solo efectivo para rol admin
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Lista paginada de productos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Producto'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags: [Productos]
+      summary: Crear un nuevo producto y registrar su precio inicial (Solo rol: admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoInput'
+      responses:
+        '201':
+          description: Producto creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /productos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    put:
+      tags: [Productos]
+      summary: Actualizar datos o precios de un producto (Solo rol: admin)
+      description: Si cambia `precio_compra` o `precio_venta`, inserta automáticamente un registro en `historial_precios`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoInput'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags: [Productos]
+      summary: Baja lógica de un producto (activo = false) (Solo rol: admin)
+      description: Nunca ejecuta DELETE físico; preserva la integridad referencial con `detalle_ventas` y `movimientos_stock`.
+      responses:
+        '200':
+          description: Producto desactivado lógicamente
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /stock/movimientos:
+    get:
+      tags: [Stock]
+      summary: Consultar bitácora paginada de movimientos de stock (Roles: vendedor, admin)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: id_producto
+          in: query
+          schema:
+            type: integer
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [ingreso, venta, ajuste_positivo, ajuste_negativo, anulacion_venta]
+      responses:
+        '200':
+          description: Lista paginada de movimientos de stock
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MovimientoStock'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Stock]
+      summary: Registrar ingreso de reposición o ajuste de stock (ingreso: vendedor/admin; ajustes: solo admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_producto, tipo, cantidad, motivo]
+              properties:
+                id_producto:
+                  type: integer
+                  minimum: 1
+                  example: 2
+                tipo:
+                  type: string
+                  enum: [ingreso, ajuste_positivo, ajuste_negativo]
+                  example: ingreso
+                cantidad:
+                  type: integer
+                  minimum: 1
+                  example: 12
+                motivo:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                  example: Reposición proveedor Arcor - Remito #0004-1290
+      responses:
+        '201':
+          description: Movimiento registrado y stock actualizado en transacción ACID
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /ventas:
+    get:
+      tags: [Ventas]
+      summary: Listar historial paginado de ventas (vendedor ve las propias; admin ve todas)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: fecha_desde
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: fecha_hasta
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista paginada de ventas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Venta'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Ventas]
+      summary: Confirmar venta transaccional con descuento atómico de stock e idempotencia (Roles: vendedor, admin)
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID v4 único generado por el cliente para evitar duplicar cobros ante reintentos
+          schema:
+            type: string
+            format: uuid
+            example: 550e8400-e29b-41d4-a716-446655440000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VentaInput'
+      responses:
+        '201':
+          description: Venta confirmada, stock descontado y movimientos registrados en una única transacción ACID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venta'
+        '200':
+          description: Respuesta idempotente (la clave Idempotency-Key ya había sido procesada; retorna la venta existente sin descontar stock dos veces)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venta'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '403':
+          description: Caja del día ya cerrada para el vendedor actual (CAJA_CERRADA)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Stock insuficiente en uno o más productos (STOCK_INSUFICIENTE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ventas/{id}/anular:
+    post:
+      tags: [Ventas]
+      summary: Anular una venta confirmada y restituir el stock (Solo rol: admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo]
+              properties:
+                motivo:
+                  type: string
+                  minLength: 5
+                  maxLength: 255
+                  example: Error de carga en medio de pago
+      responses:
+        '200':
+          description: Venta anulada y stock restituido mediante movimiento tipo anulacion_venta
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /caja/estado:
+    get:
+      tags: [Caja]
+      summary: Consultar estado de la caja del día del usuario autenticado y acumulados por medio de pago
+      responses:
+        '200':
+          description: Estado actual de la sesión diaria de caja
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fecha:
+                    type: string
+                    format: date
+                  cerrada:
+                    type: boolean
+                  cantidad_ventas:
+                    type: integer
+                  totales_acumulados:
+                    type: object
+                    properties:
+                      efectivo:
+                        type: number
+                      transferencia:
+                        type: number
+                      debito:
+                        type: number
+                      credito:
+                        type: number
+                      total:
+                        type: number
+
+  /caja/cierre:
+    post:
+      tags: [Caja]
+      summary: Ejecutar el cierre diario de caja del vendedor (1 por vendedor y fecha)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [monto_inicial, efectivo_contado]
+              properties:
+                monto_inicial:
+                  type: number
+                  minimum: 0
+                  example: 5000.00
+                efectivo_contado:
+                  type: number
+                  minimum: 0
+                  example: 24500.00
+                observaciones:
+                  type: string
+                  maxLength: 255
+                  example: Arqueo sin diferencias
+      responses:
+        '201':
+          description: Cierre de caja registrado de forma inmutable
+        '409':
+          description: El usuario ya registró su cierre de caja en la fecha actual (CIERRE_YA_EXISTE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reportes/resumen:
+    get:
+      tags: [Reportes]
+      summary: Obtener métricas de ventas y ranking de productos por período (Solo rol: admin)
+      parameters:
+        - name: periodo
+          in: query
+          schema:
+            type: string
+            enum: [dia, semana, mes]
+            default: dia
+      responses:
+        '200':
+          description: Resumen analítico del período solicitado
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Número de página (comienza en 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Cantidad de registros por página (máximo 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    PaginationMeta:
+      type: object
+      required: [page, limit, total_items, total_pages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total_items:
+          type: integer
+          example: 45
+        total_pages:
+          type: integer
+          example: 3
+
+    ErrorResponse:
+      type: object
+      required: [code, message, timestamp, path]
+      properties:
+        code:
+          type: string
+          description: Código interno uniforme de error
+          example: STOCK_INSUFICIENTE
+        message:
+          type: string
+          description: Mensaje legible para el usuario o desarrollador
+          example: Stock insuficiente para 'Alfajor Havanna Chocolate 70g' (disponible 2, solicitado 3).
+        details:
+          type: array
+          description: Detalle de campos o validaciones fallidas
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-02T15:30:00Z'
+        path:
+          type: string
+          example: /api/ventas
+
+    UsuarioResumen:
+      type: object
+      properties:
+        id_usuario:
+          type: integer
+          example: 2
+        nombre_completo:
+          type: string
+          example: Juan Pérez (Cajero)
+        usuario:
+          type: string
+          example: vendedor
+        rol:
+          type: string
+          enum: [admin, vendedor]
+          example: vendedor
+
+    Producto:
+      type: object
+      properties:
+        id_producto:
+          type: integer
+          example: 1
+        codigo:
+          type: string
+          nullable: true
+          example: '7790895000997'
+        nombre:
+          type: string
+          example: Coca-Cola Original 500ml
+        id_categoria:
+          type: integer
+          example: 1
+        id_proveedor:
+          type: integer
+          nullable: true
+          example: 1
+        precio_compra:
+          type: number
+          format: double
+          example: 1000.00
+        precio_venta:
+          type: number
+          format: double
+          example: 1500.00
+        stock_actual:
+          type: integer
+          example: 24
+        stock_minimo:
+          type: integer
+          example: 6
+        bajo_stock:
+          type: boolean
+          example: false
+        activo:
+          type: boolean
+          example: true
+
+    ProductoInput:
+      type: object
+      required: [nombre, id_categoria, precio_compra, precio_venta, stock_minimo]
+      properties:
+        codigo:
+          type: string
+          maxLength: 50
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+        descripcion:
+          type: string
+          maxLength: 255
+        id_categoria:
+          type: integer
+          minimum: 1
+        id_proveedor:
+          type: integer
+          minimum: 1
+          nullable: true
+        precio_compra:
+          type: number
+          minimum: 0
+        precio_venta:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        stock_minimo:
+          type: integer
+          minimum: 0
+
+    VentaInput:
+      type: object
+      required: [items, pagos]
+      properties:
+        observaciones:
+          type: string
+          maxLength: 255
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id_producto, cantidad]
+            properties:
+              id_producto:
+                type: integer
+                minimum: 1
+                example: 1
+              cantidad:
+                type: integer
+                minimum: 1
+                example: 2
+        pagos:
+          type: array
+          minItems: 1
+          description: Permite un único medio de pago o pago mixto (la suma de montos debe coincidir exactamente con el total de la venta)
+          items:
+            type: object
+            required: [medio_pago, monto]
+            properties:
+              medio_pago:
+                type: string
+                enum: [efectivo, transferencia, debito, credito]
+                example: efectivo
+              monto:
+                type: number
+                minimum: 0.01
+                example: 3000.00
+              referencia:
+                type: string
+                maxLength: 100
+                nullable: true
+
+    Venta:
+      type: object
+      properties:
+        id_venta:
+          type: integer
+          example: 1
+        idempotency_key:
+          type: string
+          format: uuid
+        fecha_hora:
+          type: string
+          format: date-time
+        id_usuario:
+          type: integer
+        total:
+          type: number
+          example: 4200.00
+        estado:
+          type: string
+          enum: [confirmada, anulada]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id_producto:
+                type: integer
+              nombre:
+                type: string
+              cantidad:
+                type: integer
+              precio_unitario:
+                type: number
+              subtotal:
+                type: number
+        pagos:
+          type: array
+          items:
+            type: object
+            properties:
+              medio_pago:
+                type: string
+              monto:
+                type: number
+              referencia:
+                type: string
+                nullable: true
+
+    MovimientoStock:
+      type: object
+      properties:
+        id_movimiento:
+          type: integer
+        id_producto:
+          type: integer
+        id_usuario:
+          type: integer
+        tipo:
+          type: string
+          enum: [ingreso, venta, ajuste_positivo, ajuste_negativo, anulacion_venta]
+        cantidad:
+          type: integer
+        stock_anterior:
+          type: integer
+        stock_posterior:
+          type: integer
+        id_venta:
+          type: integer
+          nullable: true
+        motivo:
+          type: string
+        fecha_hora:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequestError:
+      description: Error de validación en los parámetros o cuerpo de la petición (HTTP 400)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Token JWT ausente, inválido o expirado (HTTP 401)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: El rol del usuario no tiene permisos para ejecutar esta acción (HTTP 403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: El recurso solicitado no existe (HTTP 404)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflicto con el estado actual del recurso (stock insuficiente, cierre duplicado o clave única) (HTTP 409)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
