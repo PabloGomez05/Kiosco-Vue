@@ -1,7 +1,6 @@
 -- =============================================================================
 -- SISTEMA DE GESTIÓN E INVENTARIO PARA KIOSCO
 -- Script DDL de creación de la base de datos · MySQL 8.0.16 o superior
--- Materia: Programación II · Tecnicatura Superior en Desarrollo de Software
 -- Autor: Pablo · Versión del modelo: 2.1 (02/11/2026)
 --
 -- Uso (desde la carpeta Kiosco-Vue):

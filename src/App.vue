@@ -84,7 +84,7 @@
           <p class="subtitulo">
             {{ totalProductos }} productos activos ·
             <span v-if="productosStockBajo > 0" class="texto-alerta">
-              ⚠️ {{ productosStockBajo }} en o bajo stock mínimo
+              ⚠️ {{ productosStockBajo }} con stock bajo
             </span>
             <span v-else class="texto-ok">Todo en stock óptimo ✓</span>
             · Recaudación turno hoy:

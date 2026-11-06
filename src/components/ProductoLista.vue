@@ -29,7 +29,7 @@
             ${{ Number(producto.precio_venta ?? producto.precio).toLocaleString('es-AR') }}
           </td>
           <td class="td-stock">
-            <span v-if="esStockBajo(producto)" class="stock-alerta" title="Stock en o por debajo del mínimo">⚠️</span>
+            <span v-if="esStockBajo(producto)" class="stock-alerta" title="Producto con stock bajo">⚠️</span>
             <strong>{{ producto.stock_actual ?? producto.stock }}</strong> uds.
             <small class="stock-min-label">(mín: {{ producto.stock_minimo ?? 5 }})</small>
           </td>
