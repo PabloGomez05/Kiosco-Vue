@@ -185,3 +185,4 @@ function confirmar() {
   emit('confirmar-venta', { pagos })
 }
 </script>
+

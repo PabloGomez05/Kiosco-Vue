@@ -32,3 +32,4 @@ if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
     console.log(`🚀 API REST Kiosco-Vue v2.1 escuchando en http://localhost:${PORT}/api`);
   });
 }
+

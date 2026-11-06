@@ -1,8 +1,6 @@
 // =============================================================================
 // server/services/ventaMysqlService.js
 // Implementación Transaccional SQL (MySQL 8.0 InnoDB con mysql2/promise)
-// Materia: Programación II · Docente: José Olivera · Autor: Pablo Gómez
-//
 // Ejecuta el flujo completo con:
 //   START TRANSACTION -> SELECT ... FOR UPDATE (ordenado por PK) ->
 //   INSERT ventas -> INSERT detalle_ventas -> INSERT pagos_venta ->
@@ -131,3 +129,4 @@ export async function registrarVentaEnMySQL(pool, { idempotencyKey, idUsuario, i
     conn.release();
   }
 }
+

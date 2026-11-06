@@ -2,7 +2,7 @@
 // server/tests/demo_hito_06_11.test.js
 // Suite Automatizada de Pruebas del Hito 06/11 (Transaccionalidad, Concurrencia,
 // Idempotencia, Permisos 403 y Cierre de Caja)
-// Materia: Programación II · Docente: José Olivera · Autor: Pablo Gómez
+
 // =============================================================================
 
 import assert from 'node:assert/strict';
@@ -11,7 +11,7 @@ import { handleApiRequest } from '../app.js';
 import { kioscoDB } from '../services/kioscoEngine.js';
 
 async function invocarAPI({ method = 'GET', url = '/api/productos', token = null, headers = {}, body = null }) {
-  const reqStream = new Readable({ read() {} });
+  const reqStream = new Readable({ read() { } });
   if (body !== null) {
     reqStream.push(JSON.stringify(body));
   }
@@ -205,3 +205,4 @@ ejecutarPruebasHito().catch(err => {
   console.error('❌ Error en la suite de pruebas:', err);
   process.exit(1);
 });
+

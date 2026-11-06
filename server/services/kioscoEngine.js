@@ -2,7 +2,6 @@
 // server/services/kioscoEngine.js
 // Motor Transaccional Relacional (3FN) con Bloqueo Pesimista (Mutex Lock),
 // Rollback Atómico, Idempotencia y Persistencia de Semillas
-// Materia: Programación II · Docente: José Olivera · Autor: Pablo Gómez
 // =============================================================================
 
 import fs from 'node:fs';
@@ -353,3 +352,4 @@ class KioscoTransactionalDB {
 }
 
 export const kioscoDB = new KioscoTransactionalDB();
+

@@ -1,7 +1,6 @@
 // =============================================================================
 // middlewares/auth.js
 // Autenticación Stateless con JWT (HS256, expiración 1 hora) y Control de Roles
-// Materia: Programación II · Docente: José Olivera · Autor: Pablo Gómez
 // =============================================================================
 
 import crypto from 'node:crypto';
@@ -143,3 +142,4 @@ export function autorizarRol(req, rolesPermitidos) {
   }
   return { ok: true };
 }
+
