@@ -276,11 +276,22 @@ export async function handleApiRequest(req, res) {
           const ahora = new Date().toISOString();
           const nuevoPrecioVenta = Number(body.precio_venta ?? body.precio ?? prod.precio_venta);
           const nuevoPrecioCompra = Number(body.precio_compra ?? prod.precio_compra);
+          const tieneNuevoStock = body.stock_actual !== undefined || body.stock !== undefined;
+          const nuevoStock = tieneNuevoStock
+            ? Number(body.stock_actual ?? body.stock)
+            : prod.stock_actual;
 
           if (nuevoPrecioVenta <= 0 || nuevoPrecioCompra < 0) {
             const err = new Error('Los precios deben ser válidos y mayores a cero.');
             err.status = 400;
             err.code = 'PRECIO_INVALIDO';
+            throw err;
+          }
+
+          if (isNaN(nuevoStock) || nuevoStock < 0) {
+            const err = new Error('El stock no puede ser negativo.');
+            err.status = 400;
+            err.code = 'STOCK_INVALIDO';
             throw err;
           }
 
@@ -294,6 +305,25 @@ export async function handleApiRequest(req, res) {
               vigente_desde: ahora,
               id_usuario: req.user.id_usuario
             });
+          }
+
+          if (nuevoStock !== prod.stock_actual) {
+            const stockAnterior = prod.stock_actual;
+            const diferencia = nuevoStock - stockAnterior;
+            const nextMovId = db.movimientos_stock.reduce((m, x) => Math.max(m, x.id_movimiento), 0) + 1;
+            db.movimientos_stock.push({
+              id_movimiento: nextMovId,
+              id_producto: idProd,
+              id_usuario: req.user.id_usuario,
+              tipo: diferencia > 0 ? 'ingreso' : 'ajuste_negativo',
+              cantidad: Math.abs(diferencia),
+              stock_anterior: stockAnterior,
+              stock_posterior: nuevoStock,
+              id_venta: null,
+              motivo: 'Actualización de stock desde edición de producto',
+              fecha_hora: ahora
+            });
+            prod.stock_actual = nuevoStock;
           }
 
           if (body.nombre) prod.nombre = String(body.nombre).trim();

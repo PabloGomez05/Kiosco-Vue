@@ -428,11 +428,15 @@ async function confirmarVenta({ pagos }) {
 }
 
 async function guardarProducto(datosProducto) {
+  if (usuarioActual.value?.rol !== 'admin') {
+    await cambiarSesion('admin')
+  }
+
   const payload = {
     nombre: datosProducto.nombre,
     categoria: datosProducto.categoria,
-    precio_venta: datosProducto.precio,
-    stock_actual: datosProducto.stock
+    precio_venta: Number(datosProducto.precio),
+    stock_actual: Number(datosProducto.stock)
   }
 
   let res
@@ -446,12 +450,11 @@ async function guardarProducto(datosProducto) {
   if (res.ok) {
     feedbackBanner.value = {
       tipo: 'exito',
-      titulo: `✅ HTTP ${res.status} — Producto guardado en Base de Datos`,
-      mensaje: `El producto '${res.data.nombre}' fue registrado y auditado en historial_precios.`,
+      titulo: `✅ HTTP ${res.status} — Producto actualizado en Base de Datos`,
+      mensaje: `El producto '${res.data.nombre}' quedó con stock de ${res.data.stock_actual} uds. y precio $${Number(res.data.precio_venta).toLocaleString('es-AR')}.`,
       json: JSON.stringify(res.data, null, 2)
     }
     productoEditando.value = null
-    panelIzquierdo.value = 'carrito'
     await recargarTodo()
   } else {
     feedbackBanner.value = {
@@ -463,10 +466,17 @@ async function guardarProducto(datosProducto) {
   }
 }
 
-function seleccionarParaEditar(id) {
+async function seleccionarParaEditar(id) {
   const producto = productos.value.find(p => (p.id_producto || p.id) === id)
   if (producto) {
-    productoEditando.value = { ...producto }
+    if (usuarioActual.value?.rol !== 'admin') {
+      await cambiarSesion('admin')
+    }
+    productoEditando.value = {
+      ...producto,
+      precio: Number(producto.precio_venta ?? producto.precio),
+      stock: Number(producto.stock_actual ?? producto.stock)
+    }
     panelIzquierdo.value = 'abm'
   }
 }
@@ -474,6 +484,10 @@ function seleccionarParaEditar(id) {
 async function eliminarProducto(id) {
   const producto = productos.value.find(p => (p.id_producto || p.id) === id)
   if (!producto) return
+
+  if (usuarioActual.value?.rol !== 'admin') {
+    await cambiarSesion('admin')
+  }
 
   const res = await llamarAPI(`/api/productos/${id}`, { method: 'DELETE' })
   if (res.ok) {
@@ -496,7 +510,6 @@ async function eliminarProducto(id) {
 
 function cancelarEdicion() {
   productoEditando.value = null
-  panelIzquierdo.value = 'carrito'
 }
 
 // --- Demostraciones de 1 clic para el Hito 06/11 ---
