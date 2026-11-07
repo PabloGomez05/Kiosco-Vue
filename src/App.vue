@@ -3,7 +3,7 @@
     <nav class="navbar">
       <div class="navbar-left">
         <span class="navbar-brand">🏪 Mi Kiosco POS</span>
-        <span class="navbar-subtitle">Demo Hito 06/11 · Venta Transaccional ACID + RBAC JWT</span>
+        <span class="navbar-subtitle">Punto de Venta Transaccional (ACID) · Control de Stock y Permisos JWT</span>
       </div>
 
       <div class="navbar-right">
@@ -37,11 +37,11 @@
     </nav>
 
     <main class="contenido">
-      <!-- Barra de pruebas interactivas para el Hito 06/11 -->
+      <!-- Barra de pruebas interactivas y operaciones rápidas -->
       <section class="demo-bar">
         <div class="demo-bar-title">
-          <strong>⚡ Pruebas en Vivo del Hito 06/11:</strong>
-          <span>Ejecutá con 1 clic las demostraciones pedidas por el docente:</span>
+          <strong>⚡ Panel de Pruebas y Operaciones Rápidas:</strong>
+          <span>Simulación de concurrencia, validación RBAC, cierre de caja y restauración de semillas:</span>
         </div>
         <div class="demo-bar-actions">
           <button type="button" class="btn btn-demo" @click="probarConcurrencia">
@@ -128,6 +128,7 @@
         <ProductoForm
           v-else
           :producto="productoEditando"
+          :categorias="categorias"
           @guardar="guardarProducto"
           @cancelar="cancelarEdicion"
         />
@@ -269,7 +270,7 @@ const busqueda = ref('')
 const categoriaFiltro = ref('')
 const feedbackBanner = ref(null)
 
-const categorias = ['Bebidas', 'Golosinas', 'Snacks', 'Galletitas', 'Varios']
+const categorias = ref(['Bebidas', 'Golosinas', 'Snacks', 'Galletitas', 'Varios', 'Lácteos'])
 
 const totalProductos = computed(() => productos.value.length)
 const productosStockBajo = computed(() =>
@@ -322,12 +323,16 @@ async function cambiarSesion(usuarioLogin) {
 }
 
 async function recargarTodo() {
-  const [resProd, resVentas, resMov, resCaja] = await Promise.all([
+  const [resCat, resProd, resVentas, resMov, resCaja] = await Promise.all([
+    llamarAPI('/api/categorias'),
     llamarAPI('/api/productos?limit=50'),
     llamarAPI('/api/ventas?limit=10'),
     llamarAPI('/api/stock/movimientos?limit=15'),
     llamarAPI('/api/caja/estado')
   ])
+  if (resCat.ok && Array.isArray(resCat.data.data)) {
+    categorias.value = resCat.data.data.map(c => c.nombre)
+  }
   if (resProd.ok) {
     productos.value = resProd.data.data.map(p => ({
       ...p,

@@ -27,7 +27,8 @@ export function crearEstadoSemillaInicial() {
       { id_categoria: 2, nombre: 'Golosinas', descripcion: 'Alfajores, chocolates, caramelos, gomitas y chicles', activo: true },
       { id_categoria: 3, nombre: 'Snacks', descripcion: 'Papas fritas, palitos salados, maní y nachos', activo: true },
       { id_categoria: 4, nombre: 'Galletitas', descripcion: 'Galletitas dulces, saladas y rellenas', activo: true },
-      { id_categoria: 5, nombre: 'Varios', descripcion: 'Encendedores, pilas, pañuelos descartables y otros artículos', activo: true }
+      { id_categoria: 5, nombre: 'Varios', descripcion: 'Encendedores, pilas, pañuelos descartables y otros artículos', activo: true },
+      { id_categoria: 6, nombre: 'Lácteos', descripcion: 'Leches, yogures, chocolatadas y postres refrigerados', activo: true }
     ],
     proveedores: [
       { id_proveedor: 1, razon_social: 'Coca-Cola FEMSA de Buenos Aires S.A.', cuit: '30-52011245-8', contacto: 'Mariana López', telefono: '011-5678-1234', email: 'pedidos@cocacola-femsa.com.ar', activo: true },
@@ -79,14 +80,22 @@ class KioscoTransactionalDB {
   }
 
   cargarEstado() {
+    const inicial = crearEstadoSemillaInicial();
     try {
       if (fs.existsSync(DATA_FILE)) {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const guardado = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        if (Array.isArray(guardado.categorias)) {
+          for (const catSemilla of inicial.categorias) {
+            if (!guardado.categorias.some(c => c.nombre.toLowerCase() === catSemilla.nombre.toLowerCase())) {
+              guardado.categorias.push(catSemilla);
+            }
+          }
+        }
+        return guardado;
       }
     } catch {
       // Si no existe o está corrupto, regenerar desde semilla
     }
-    const inicial = crearEstadoSemillaInicial();
     this.guardarEstado(inicial);
     return inicial;
   }

@@ -1,11 +1,26 @@
 // =============================================================================
 // server/services/ventaMysqlService.js
-// Implementación Transaccional SQL (MySQL 8.0 InnoDB con mysql2/promise)
-// Ejecuta el flujo completo con:
-//   START TRANSACTION -> SELECT ... FOR UPDATE (ordenado por PK) ->
-//   INSERT ventas -> INSERT detalle_ventas -> INSERT pagos_venta ->
-//   UPDATE productos -> INSERT movimientos_stock -> COMMIT / ROLLBACK
+// Conexión a Base de Datos MySQL 8.0 (Pool mysql2/promise) e Implementación
+// Transaccional SQL (START TRANSACTION -> SELECT ... FOR UPDATE -> COMMIT/ROLLBACK)
 // =============================================================================
+
+import mysql from 'mysql2/promise';
+
+/**
+ * Crea el Pool de Conexiones hacia MySQL 8.0 (Base de datos: kiosk_db)
+ */
+export function crearPoolMysql() {
+  return mysql.createPool({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'kiosk_db',
+    waitForConnections: true,
+    connectionLimit: 10,
+    decimalNumbers: true
+  });
+}
 
 export async function registrarVentaEnMySQL(pool, { idempotencyKey, idUsuario, items, pagos, observaciones }) {
   const conn = await pool.getConnection();

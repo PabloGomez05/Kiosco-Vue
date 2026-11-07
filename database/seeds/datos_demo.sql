@@ -25,7 +25,9 @@ INSERT INTO categorias (id_categoria, nombre, descripcion, activo) VALUES
 (2, 'Golosinas',  'Alfajores, chocolates, caramelos, gomitas y chicles', TRUE),
 (3, 'Snacks',     'Papas fritas, palitos salados, maní y nachos', TRUE),
 (4, 'Galletitas', 'Galletitas dulces, saladas y rellenas', TRUE),
-(5, 'Varios',     'Encendedores, pilas, pañuelos descartables y otros artículos', TRUE);
+(5, 'Varios',     'Encendedores, pilas, pañuelos descartables y otros artículos', TRUE),
+(6, 'Lácteos',    'Leches, yogures, chocolatadas y postres refrigerados', TRUE);
+
 
 -- 3. Proveedores habituales (con CUIT validado por expresión regular)
 INSERT INTO proveedores (id_proveedor, razon_social, cuit, contacto, telefono, email, activo) VALUES

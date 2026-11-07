@@ -71,6 +71,10 @@ const props = defineProps({
   producto: {
     type: Object,
     default: null
+  },
+  categorias: {
+    type: Array,
+    default: () => ['Bebidas', 'Golosinas', 'Snacks', 'Galletitas', 'Varios', 'Lácteos']
   }
 })
 
@@ -80,8 +84,6 @@ const nombre = ref('')
 const categoria = ref('')
 const precio = ref(null)
 const stock = ref(null)
-
-const categorias = ['Bebidas', 'Golosinas', 'Snacks', 'Galletitas', 'Helados', 'Varios']
 
 const esEdicion = computed(() => props.producto !== null)
 

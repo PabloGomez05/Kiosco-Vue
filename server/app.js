@@ -116,11 +116,48 @@ export async function handleApiRequest(req, res) {
     }
 
     // -------------------------------------------------------------------------
-    // 2. GET /api/categorias (Roles: vendedor, admin)
+    // 2. GET / POST /api/categorias
     // -------------------------------------------------------------------------
-    if (req.method === 'GET' && pathname === '/api/categorias') {
-      const activas = kioscoDB.state.categorias.filter(c => c.activo);
-      return responderJSON(res, 200, { data: activas });
+    if (pathname === '/api/categorias') {
+      if (req.method === 'GET') {
+        const disco = kioscoDB.cargarEstado();
+        if (Array.isArray(disco.categorias)) {
+          kioscoDB.state.categorias = disco.categorias;
+        }
+        const activas = kioscoDB.state.categorias.filter(c => c.activo);
+        return responderJSON(res, 200, { data: activas });
+      }
+
+      if (req.method === 'POST') {
+        const rbac = autorizarRol(req, ['admin']);
+        if (!rbac.ok) return responderJSON(res, rbac.status, rbac.body);
+
+        const body = await leerJsonBody(req);
+        const nombre = String(body.nombre || '').trim();
+        const descripcion = String(body.descripcion || '').trim() || null;
+        if (!nombre) {
+          return responderJSON(
+            res,
+            400,
+            crearErrorUniforme('VALIDACION_CATEGORIA', 'El nombre de la categoría es obligatorio.', pathname)
+          );
+        }
+
+        const nuevaCat = await kioscoDB.ejecutarEnTransaccion(async db => {
+          if (db.categorias.some(c => c.nombre.toLowerCase() === nombre.toLowerCase())) {
+            const err = new Error(`La categoría '${nombre}' ya existe.`);
+            err.status = 409;
+            err.code = 'CATEGORIA_DUPLICADA';
+            throw err;
+          }
+          const nuevoId = db.categorias.reduce((m, c) => Math.max(m, c.id_categoria), 0) + 1;
+          const cat = { id_categoria: nuevoId, nombre, descripcion, activo: true };
+          db.categorias.push(cat);
+          return cat;
+        });
+
+        return responderJSON(res, 201, nuevaCat);
+      }
     }
 
     // -------------------------------------------------------------------------
